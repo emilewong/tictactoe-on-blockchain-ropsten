@@ -1,10 +1,16 @@
 import Web3 from "web3";
-import metaCoinArtifact from "../../build/contracts/MetaCoin.json";
+import $ from "jquery";
+import contract from "truffle-contract";
+
+import gameManagerArtifact from "../../build/contracts/GameManager.json";
+import threeInARowArtifact from "../../build/contracts/ThreeInARow.json";
 
 const App = {
   web3: null,
   account: null,
-  meta: null,
+  gameManager: null,
+  ThreeInARow: null,
+
 
   start: async function () {
     const {
@@ -12,49 +18,40 @@ const App = {
     } = this;
 
     try {
-      // get contract instance
-      const networkId = await web3.eth.net.getId();
-      const deployedNetwork = metaCoinArtifact.networks[networkId];
-      this.meta = new web3.eth.Contract(
-        metaCoinArtifact.abi,
-        deployedNetwork.address,
-      );
+
+      // access the gameManager isntance
+      this.gameManager = contract(gameManagerArtifact);
+      this.gameManager.setProvider(this.web3.currentProvider);
+
+      // access the threeInARow instance
+      this.threeInARow = contract(threeInARowArtifact);
+      this.threeInARow.setProvider(this.webs.currentProvider);
 
       // get accounts
       const accounts = await web3.eth.getAccounts();
       this.account = accounts[0];
 
-      this.refreshBalance();
+      // set the default account for gameManager
+      this.gameManager.defaults({
+        from: this.account
+      });
+
+      // set the default account for threeInARow
+      this.threeInARow.defaults({
+        from: this.account
+      });
+
     } catch (error) {
       console.error("Could not connect to contract or chain.");
     }
   },
-
-  refreshBalance: async function () {
+  refreshHighscore: async function () {
     const {
-      getBalance
-    } = this.meta.methods;
-    const balance = await getBalance(this.account).call();
-
-    const balanceElement = document.getElementsByClassName("balance")[0];
-    balanceElement.innerHTML = balance;
-  },
-
-  sendCoin: async function () {
-    const amount = parseInt(document.getElementById("amount").value);
-    const receiver = document.getElementById("receiver").value;
-
-    this.setStatus("Initiating transaction... (please wait)");
-
-    const {
-      sendCoin
-    } = this.meta.methods;
-    await sendCoin(receiver, amount).send({
-      from: this.account
-    });
-
-    this.setStatus("Transaction complete!");
-    this.refreshBalance();
+      gameManager
+    } = this;
+    let gameManagerInstance = await gameManager.deployed();
+    let top10 = await gameManagerInstance.getTop10();
+    console.log(top10);
   },
 
   setStatus: function (message) {
